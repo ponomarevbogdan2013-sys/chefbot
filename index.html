@@ -1,0 +1,430 @@
+import asyncio
+import os
+import json
+import asyncpg
+from dotenv import load_dotenv
+
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.filters import CommandStart, Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
+
+import google.generativeai as genai
+
+load_dotenv()
+
+# Инициализация
+bot = Bot(token=os.getenv("TELEGRAM_TOKEN"))
+dp = Dispatcher(storage=MemoryStorage())
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+gemini = genai.GenerativeModel("gemini-1.5-flash")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# States
+class SetupKBJU(StatesGroup):
+    waiting_kcal = State()
+    waiting_protein = State()
+    waiting_fat = State()
+    waiting_carbs = State()
+
+# БД — подключение
+async def get_db():
+    return await asyncpg.connect(DATABASE_URL)
+
+# Получить профиль
+async def get_profile(user_id):
+    db = await get_db()
+    try:
+        row = await db.fetchrow("SELECT * FROM profiles WHERE user_id=$1", user_id)
+        if row:
+            return dict(row)
+        await db.execute(
+            "INSERT INTO profiles(user_id,mode,kcal,protein,fat,carbs) VALUES($1,$2,$3,$4,$5,$6)",
+            user_id, "cut", 2000, 180, 60, 180
+        )
+        return {"user_id": user_id, "mode": "cut", "kcal": 2000, "protein": 180, "fat": 60, "carbs": 180}
+    finally:
+        await db.close()
+
+# Обновить профиль
+async def update_profile(user_id, **kwargs):
+    db = await get_db()
+    try:
+        sets = ", ".join([f"{k}=${i+2}" for i, k in enumerate(kwargs)])
+        vals = list(kwargs.values())
+        await db.execute(f"UPDATE profiles SET {sets} WHERE user_id=$1", user_id, *vals)
+    finally:
+        await db.close()
+
+# История блюд
+async def get_history(user_id):
+    db = await get_db()
+    try:
+        rows = await db.fetch(
+            "SELECT recipe_name FROM history WHERE user_id=$1 ORDER BY cooked_at DESC LIMIT 7",
+            user_id
+        )
+        return [r["recipe_name"] for r in rows]
+    finally:
+        await db.close()
+
+async def save_history(user_id, name):
+    db = await get_db()
+    try:
+        await db.execute(
+            "INSERT INTO history(user_id, recipe_name) VALUES($1,$2)",
+            user_id, name
+        )
+    finally:
+        await db.close()
+
+# Сохранить рецепт
+async def save_recipe(user_id, data, source):
+    db = await get_db()
+    try:
+        await db.execute(
+            """INSERT INTO recipes(user_id,name,ingredients,time_minutes,kcal,protein,fat,carbs,tags,summary,source)
+               VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)""",
+            user_id,
+            data.get("name", "Рецепт"),
+            data.get("ingredients", []),
+            data.get("time_minutes"),
+            data.get("kcal"),
+            data.get("protein"),
+            data.get("fat"),
+            data.get("carbs"),
+            data.get("tags", []),
+            data.get("summary", ""),
+            source
+        )
+    finally:
+        await db.close()
+
+# Получить рецепты
+async def get_recipes(user_id):
+    db = await get_db()
+    try:
+        rows = await db.fetch(
+            "SELECT * FROM recipes WHERE user_id=$1 ORDER BY created_at DESC LIMIT 10",
+            user_id
+        )
+        return [dict(r) for r in rows]
+    finally:
+        await db.close()
+
+# КБЖУ контекст
+def kbju_context(p):
+    mode = "сушка (дефицит калорий)" if p["mode"] == "cut" else "набор массы (профицит)"
+    return (f"Режим пользователя: {mode}\n"
+            f"Цели на день: {p['kcal']} ккал, "
+            f"белок {p['protein']}г, жир {p['fat']}г, углеводы {p['carbs']}г")
+
+# Главное меню
+def main_menu():
+    return ReplyKeyboardMarkup(keyboard=[
+        [KeyboardButton(text="🧊 Из холодильника"), KeyboardButton(text="📅 План на день")],
+        [KeyboardButton(text="📚 Мои рецепты"),     KeyboardButton(text="⚙️ Мой профиль")],
+        [KeyboardButton(text="🔄 Сушка / Набор")]
+    ], resize_keyboard=True)
+
+# /start
+@dp.message(CommandStart())
+async def cmd_start(message: Message):
+    await get_profile(message.from_user.id)
+    await message.answer(
+        "👨‍🍳 *Привет! Я твой личный шеф-бот.*\n\n"
+        "Скажу что приготовить из того что есть, "
+        "составлю план питания под твои КБЖУ, "
+        "сохраню рецепты из Instagram.\n\n"
+        "Выбирай что нужно 👇",
+        parse_mode="Markdown",
+        reply_markup=main_menu()
+    )
+
+# Профиль
+@dp.message(F.text == "⚙️ Мой профиль")
+async def show_profile(message: Message):
+    p = await get_profile(message.from_user.id)
+    history = await get_history(message.from_user.id)
+    mode = "🔥 Сушка" if p["mode"] == "cut" else "💪 Набор"
+    hist_text = ", ".join(history) if history else "пока пусто"
+    await message.answer(
+        f"*Твой профиль:*\n\n"
+        f"Режим: {mode}\n"
+        f"Калории: {p['kcal']} ккал\n"
+        f"Белок: {p['protein']}г | Жир: {p['fat']}г | Углеводы: {p['carbs']}г\n\n"
+        f"*Последние блюда:* {hist_text}\n\n"
+        f"Изменить КБЖУ: /setkbju",
+        parse_mode="Markdown"
+    )
+
+# Переключить режим
+@dp.message(F.text == "🔄 Сушка / Набор")
+async def toggle_mode(message: Message):
+    p = await get_profile(message.from_user.id)
+    new_mode = "bulk" if p["mode"] == "cut" else "cut"
+    defaults = {
+        "cut":  (2000, 180, 60, 180),
+        "bulk": (2800, 160, 90, 300)
+    }
+    kcal, prot, fat, carbs = defaults[new_mode]
+    await update_profile(message.from_user.id,
+                         mode=new_mode, kcal=kcal,
+                         protein=prot, fat=fat, carbs=carbs)
+    label = "💪 Набор массы" if new_mode == "bulk" else "🔥 Сушка"
+    await message.answer(
+        f"Переключил на *{label}*\n"
+        f"Новые цели: {kcal} ккал / Б{prot} / Ж{fat} / У{carbs}\n\n"
+        f"Изменить вручную: /setkbju",
+        parse_mode="Markdown"
+    )
+
+# Установить КБЖУ
+@dp.message(Command("setkbju"))
+async def set_kbju_start(message: Message, state: FSMContext):
+    await state.set_state(SetupKBJU.waiting_kcal)
+    await message.answer("Введи целевые калории в день (например: 2200)")
+
+@dp.message(SetupKBJU.waiting_kcal)
+async def set_kcal(message: Message, state: FSMContext):
+    await state.update_data(kcal=int(message.text))
+    await state.set_state(SetupKBJU.waiting_protein)
+    await message.answer("Белок в граммах (например: 180)")
+
+@dp.message(SetupKBJU.waiting_protein)
+async def set_protein(message: Message, state: FSMContext):
+    await state.update_data(protein=int(message.text))
+    await state.set_state(SetupKBJU.waiting_fat)
+    await message.answer("Жиры в граммах (например: 60)")
+
+@dp.message(SetupKBJU.waiting_fat)
+async def set_fat(message: Message, state: FSMContext):
+    await state.update_data(fat=int(message.text))
+    await state.set_state(SetupKBJU.waiting_carbs)
+    await message.answer("Углеводы в граммах (например: 180)")
+
+@dp.message(SetupKBJU.waiting_carbs)
+async def set_carbs(message: Message, state: FSMContext):
+    data = await state.get_data()
+    data["carbs"] = int(message.text)
+    await update_profile(message.from_user.id, **data)
+    await state.clear()
+    await message.answer(
+        f"✅ Сохранил!\n"
+        f"{data['kcal']} ккал / Б{data['protein']} / Ж{data['fat']} / У{data['carbs']}",
+        reply_markup=main_menu()
+    )
+
+# Из холодильника — подсказка
+@dp.message(F.text == "🧊 Из холодильника")
+async def fridge_hint(message: Message):
+    await message.answer(
+        "Напиши что есть через запятую:\n\n"
+        "_Например: куриная грудка, яйца, брокколи, рис, чеснок_\n\n"
+        "Можешь добавить пожелание:\n"
+        "• *быстро* — до 15 минут\n"
+        "• *нормально* — 30-40 минут\n"
+        "• *заготовка* — на несколько дней",
+        parse_mode="Markdown"
+    )
+
+# Мои рецепты
+@dp.message(F.text == "📚 Мои рецепты")
+async def my_recipes(message: Message):
+    recipes = await get_recipes(message.from_user.id)
+    if not recipes:
+        await message.answer(
+            "База пуста 📭\n\n"
+            "Отправь мне:\n"
+            "• Текст рецепта\n"
+            "• Описание блюда\n\n"
+            "И я сохраню его в базу!"
+        )
+        return
+    text = "📚 *Твои рецепты:*\n\n"
+    for i, r in enumerate(recipes, 1):
+        kcal = f"{r['kcal']} ккал" if r.get("kcal") else ""
+        text += f"{i}. *{r['name']}* {kcal}\n_{r.get('summary', '')}_\n\n"
+    await message.answer(text, parse_mode="Markdown")
+
+# План на день
+@dp.message(F.text == "📅 План на день")
+async def day_plan(message: Message):
+    p = await get_profile(message.from_user.id)
+    history = await get_history(message.from_user.id)
+    hist_text = f"\nНе повторяй эти блюда: {', '.join(history)}" if history else ""
+    await message.answer("📅 Составляю меню...")
+    prompt = f"""Ты нутрициолог и шеф-повар. Составь меню на день — вкусное и реалистичное.
+
+{kbju_context(p)}
+{hist_text}
+
+Формат ответа:
+
+🌅 ЗАВТРАК (~XX ккал)
+Название — краткий рецепт (3-4 шага)
+КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
+
+🍱 ОБЕД (~XX ккал)
+Название — краткий рецепт
+КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
+
+🥗 ПЕРЕКУС (~XX ккал)
+Название — что съесть
+КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
+
+🍽 УЖИН (~XX ккал)
+Название — краткий рецепт
+КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
+
+📊 ИТОГО: X ккал / Б Xг / Ж Xг / У Xг
+
+🛒 Докупить: список продуктов
+
+Блюда должны быть реально вкусными, не скучными. Пиши по-русски."""
+    try:
+        response = gemini.generate_content(prompt)
+        await message.answer(response.text, reply_markup=main_menu())
+    except Exception as e:
+        await message.answer(f"Ошибка: {e}")
+
+# Сохранить рецепт из текста через Gemini
+async def parse_and_save_recipe(message: Message, text: str, source: str):
+    await message.answer("🧠 Анализирую рецепт...")
+    prompt = f"""Из этого текста извлеки рецепт и верни ТОЛЬКО JSON без markdown и без пояснений:
+{{
+  "name": "название блюда",
+  "ingredients": ["ингредиент с граммами"],
+  "time_minutes": число,
+  "kcal": число или null,
+  "protein": число или null,
+  "fat": число или null,
+  "carbs": число или null,
+  "tags": ["тег"],
+  "summary": "одно предложение о блюде",
+  "steps": ["шаг 1", "шаг 2"]
+}}
+
+Текст: {text}"""
+    try:
+        response = gemini.generate_content(prompt)
+        clean = response.text.replace("```json", "").replace("```", "").strip()
+        data = json.loads(clean)
+        await save_recipe(message.from_user.id, data, source)
+        steps = "\n".join([f"{i+1}. {s}" for i, s in enumerate(data.get("steps", []))])
+        kcal_info = (
+            f"{data['kcal']} ккал / Б{data.get('protein','?')} / Ж{data.get('fat','?')} / У{data.get('carbs','?')}"
+            if data.get("kcal") else "КБЖУ не найдено"
+        )
+        await message.answer(
+            f"✅ *{data.get('name', 'Рецепт')}* сохранён в базу!\n\n"
+            f"📊 {kcal_info}\n\n"
+            f"👨‍🍳 Шаги:\n{steps}",
+            parse_mode="Markdown",
+            reply_markup=main_menu()
+        )
+    except Exception as e:
+        await message.answer(f"Не удалось разобрать рецепт: {e}")
+
+# Обработка любого текста
+MENU_BUTTONS = {
+    "🧊 Из холодильника", "📅 План на день",
+    "📚 Мои рецепты", "⚙️ Мой профиль", "🔄 Сушка / Набор"
+}
+
+@dp.message(F.text & ~F.text.startswith("/"))
+async def handle_text(message: Message, state: FSMContext):
+    if message.text in MENU_BUTTONS:
+        return
+
+    text = message.text.lower()
+
+    # Определяем — это рецепт для сохранения или запрос блюда
+    keywords_save = ["рецепт:", "сохрани", "добавь в базу"]
+    if any(k in text for k in keywords_save):
+        await parse_and_save_recipe(message, message.text, "вручную")
+        return
+
+    # Определяем формат
+    if "заготовка" in text or "несколько дней" in text or "на неделю" in text:
+        fmt = "заготовка на 3-5 дней (несколько порций, можно хранить в контейнерах)"
+    elif "долго" in text or "нормально" in text or "30" in text or "40" in text:
+        fmt = "обычный рецепт (30-40 минут)"
+    else:
+        fmt = "быстрый рецепт (до 15 минут)"
+
+    p = await get_profile(message.from_user.id)
+    history = await get_history(message.from_user.id)
+    hist_text = f"\nНе повторяй эти блюда: {', '.join(history)}" if history else ""
+
+    await message.answer("👨‍🍳 Думаю...")
+
+    prompt = f"""Ты шеф-повар который готовит очень вкусно — как крутые фуд-блогеры.
+Ярко, сочно, с балансом вкусов. Без пафоса — просто реально вкусно.
+
+{kbju_context(p)}
+{hist_text}
+
+Ингредиенты или запрос: {message.text}
+Формат: {fmt}
+
+Ответь в таком формате:
+
+🍽 НАЗВАНИЕ БЛЮДА
+
+💬 Почему вкусно (1-2 предложения про вкусовой баланс)
+
+📦 Ингредиенты (с граммами на порцию):
+• ...
+
+👨‍🍳 Приготовление:
+1. ...
+2. ...
+
+📊 КБЖУ на порцию: X ккал / Б Xг / Ж Xг / У Xг
+
+🔥 Фишка: что делает блюдо реально вкусным
+
+Пиши по-русски. Будь конкретным с граммами."""
+
+    try:
+        response = gemini.generate_content(prompt)
+        result = response.text
+
+        # Сохранить в историю
+        lines = [l.strip() for l in result.split('\n') if l.strip()]
+        first = lines[0].replace("🍽", "").replace("НАЗВАНИЕ БЛЮДА", "").strip()
+        if first:
+            await save_history(message.from_user.id, first)
+
+        await message.answer(result)
+        await message.answer(
+            "Сохранить рецепт в базу?\nНапиши *да* — и я запомню 👇",
+            parse_mode="Markdown",
+            reply_markup=main_menu()
+        )
+    except Exception as e:
+        await message.answer(f"Ошибка: {e}")
+
+# Сохранить последний рецепт по команде "да"
+@dp.message(F.text.lower().in_(["да", "сохрани", "сохранить"]))
+async def save_last(message: Message, state: FSMContext):
+    data = await state.get_data()
+    last = data.get("last_recipe")
+    if last:
+        await parse_and_save_recipe(message, last, "из чата")
+    else:
+        await message.answer(
+            "Отправь мне текст рецепта — и я сохраню его в базу.",
+            reply_markup=main_menu()
+        )
+
+# Запуск
+async def main():
+    print("Бот запущен ✅")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
