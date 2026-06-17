@@ -33,11 +33,7 @@
     padding: 20px 16px 40px;
   }
 
-  .header {
-    text-align: center;
-    margin-bottom: 28px;
-    padding-top: 8px;
-  }
+  .header { text-align: center; margin-bottom: 28px; padding-top: 8px; }
   .header h1 {
     font-family: 'Syne', sans-serif;
     font-size: 2rem;
@@ -52,7 +48,6 @@
 
   .container { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 16px; }
 
-  /* KBJU bar */
   .kbju-bar {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -91,7 +86,6 @@
   }
   .mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 
-  /* Tabs */
   .tabs { display: flex; gap: 4px; background: var(--surface); border-radius: var(--radius); padding: 5px; }
   .tab {
     flex: 1; padding: 9px 8px; border: none; border-radius: 10px;
@@ -102,11 +96,9 @@
   .tab.active { background: var(--surface2); color: var(--text); }
   .tab:hover:not(.active) { color: var(--text); }
 
-  /* Panels */
   .panel { display: none; flex-direction: column; gap: 12px; }
   .panel.active { display: flex; }
 
-  /* Input areas */
   .input-area {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -134,7 +126,6 @@
   textarea:focus { border-color: var(--accent); }
   textarea::placeholder { color: var(--muted); }
 
-  /* Format selector */
   .format-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .fmt-btn {
     padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border);
@@ -143,7 +134,6 @@
   }
   .fmt-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(255,107,53,0.08); }
 
-  /* Generate button */
   .gen-btn {
     background: linear-gradient(135deg, var(--accent), #ff8c5a);
     border: none; border-radius: 12px; color: #fff;
@@ -154,7 +144,6 @@
   .gen-btn:hover { opacity: 0.9; transform: translateY(-1px); }
   .gen-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-  /* Result */
   .result-box {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -165,19 +154,16 @@
     gap: 14px;
   }
   .result-box.visible { display: flex; }
-  .result-header { display: flex; justify-content: space-between; align-items: center; }
+  .result-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
   .result-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; }
   .kbju-pills { display: flex; gap: 6px; flex-wrap: wrap; }
-  .pill {
-    padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
-  }
+  .pill { padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
   .pill.kcal { background: rgba(255,214,10,0.15); color: var(--accent2); border: 1px solid rgba(255,214,10,0.3); }
   .pill.protein { background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.25); }
   .pill.fat { background: rgba(251,146,60,0.12); color: #fb923c; border: 1px solid rgba(251,146,60,0.25); }
   .pill.carb { background: rgba(147,197,253,0.12); color: #93c5fd; border: 1px solid rgba(147,197,253,0.25); }
   .result-body { font-size: 0.88rem; line-height: 1.8; color: #d0d0d0; white-space: pre-wrap; }
 
-  /* DB section */
   .db-header { display: flex; justify-content: space-between; align-items: center; }
   .db-header h3 { font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700; }
   .db-count { font-size: 0.75rem; color: var(--muted); }
@@ -203,24 +189,6 @@
   }
   .db-item-use:hover { border-color: var(--accent); color: var(--accent); }
 
-  /* Instagram input */
-  .ig-area { display: flex; gap: 8px; }
-  .ig-area input {
-    flex: 1; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 10px; color: var(--text); font-family: 'Inter', sans-serif;
-    font-size: 0.88rem; padding: 10px 12px; outline: none;
-  }
-  .ig-area input:focus { border-color: var(--accent); }
-  .ig-area input::placeholder { color: var(--muted); }
-  .ig-add-btn {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 10px; color: var(--text); padding: 10px 16px;
-    cursor: pointer; font-size: 0.85rem; white-space: nowrap;
-    font-family: 'Inter', sans-serif; transition: all 0.2s;
-  }
-  .ig-add-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-  /* Loading */
   .loading { display: none; align-items: center; gap: 10px; color: var(--muted); font-size: 0.85rem; padding: 8px 0; }
   .loading.visible { display: flex; }
   .spinner {
@@ -230,11 +198,24 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Empty db */
   .db-empty { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 24px 0; }
-
   .error-msg { color: #f87171; font-size: 0.82rem; padding: 6px 0; display: none; }
   .error-msg.visible { display: block; }
+
+  .save-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    color: var(--accent);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+  }
+  .save-btn:hover { background: rgba(255,107,53,0.1); }
 
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -250,7 +231,6 @@
 
 <div class="container">
 
-  <!-- КБЖУ профиль -->
   <div class="kbju-bar">
     <label>Цель</label>
     <div class="mode-toggle">
@@ -258,21 +238,20 @@
       <button class="mode-btn" onclick="setMode('bulk', this)">Набор</button>
     </div>
     <div class="kbju-inputs">
-      <div class="kbju-field"><span>Ккал</span><input type="number" id="kcal" value="2000" placeholder="2000"></div>
-      <div class="kbju-field"><span>Белок г</span><input type="number" id="protein" value="180" placeholder="180"></div>
-      <div class="kbju-field"><span>Жир г</span><input type="number" id="fat" value="60" placeholder="60"></div>
-      <div class="kbju-field"><span>Углей г</span><input type="number" id="carbs" value="180" placeholder="180"></div>
+      <div class="kbju-field"><span>Ккал</span><input type="number" id="kcal" value="2000"></div>
+      <div class="kbju-field"><span>Белок г</span><input type="number" id="protein" value="180"></div>
+      <div class="kbju-field"><span>Жир г</span><input type="number" id="fat" value="60"></div>
+      <div class="kbju-field"><span>Углей г</span><input type="number" id="carbs" value="180"></div>
     </div>
   </div>
 
-  <!-- Табы -->
   <div class="tabs">
     <button class="tab active" onclick="switchTab('fridge', this)">🧊 Из холодильника</button>
     <button class="tab" onclick="switchTab('plan', this)">📅 План на день</button>
     <button class="tab" onclick="switchTab('db', this)">📚 Моя база</button>
   </div>
 
-  <!-- Панель: Из холодильника -->
+  <!-- Из холодильника -->
   <div class="panel active" id="tab-fridge">
     <div class="input-area">
       <label>Что есть в холодильнике?</label>
@@ -292,18 +271,19 @@
     <button class="gen-btn" onclick="generateFridge()">Придумать рецепт</button>
     <div class="result-box" id="fridge-result">
       <div class="result-header">
-        <div class="result-title" id="fridge-result-title"></div>
+        <div class="result-title">Рецепт готов 👨‍🍳</div>
         <div class="kbju-pills" id="fridge-pills"></div>
       </div>
       <div class="result-body" id="fridge-result-body"></div>
+      <button class="save-btn" onclick="saveCurrentRecipe()">💾 Сохранить в мою базу</button>
     </div>
   </div>
 
-  <!-- Панель: План на день -->
+  <!-- План на день -->
   <div class="panel" id="tab-plan">
     <div class="input-area">
-      <label>Пожелания и ограничения (необязательно)</label>
-      <textarea id="plan-input" placeholder="Например: без глютена, не люблю рыбу, есть дома рис и курица, хочу 4 приёма пищи..." style="min-height:60px"></textarea>
+      <label>Пожелания (необязательно)</label>
+      <textarea id="plan-input" placeholder="Например: без глютена, не люблю рыбу, хочу 4 приёма пищи..." style="min-height:60px"></textarea>
     </div>
     <div class="loading" id="plan-loading"><div class="spinner"></div><span>Составляю меню...</span></div>
     <div class="error-msg" id="plan-error"></div>
@@ -314,20 +294,13 @@
     </div>
   </div>
 
-  <!-- Панель: База рецептов -->
+  <!-- База рецептов -->
   <div class="panel" id="tab-db">
     <div class="input-area">
-      <label>Добавить рецепт из Instagram</label>
-      <div class="ig-area">
-        <input type="text" id="ig-url" placeholder="Вставь ссылку на пост или Reels из Instagram...">
-        <button class="ig-add-btn" onclick="addFromIG()">+ Добавить</button>
-      </div>
-      <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">
-        💡 Или опиши рецепт текстом — бот сохранит его в базу
-      </div>
-      <textarea id="ig-manual" placeholder="Или вставь описание рецепта вручную: название, ингредиенты, способ приготовления..." style="min-height:60px"></textarea>
-      <div class="loading" id="ig-loading"><div class="spinner"></div><span>Анализирую рецепт...</span></div>
-      <div class="error-msg" id="ig-error"></div>
+      <label>Добавить рецепт вручную</label>
+      <textarea id="manual-recipe" placeholder="Вставь текст рецепта — название, ингредиенты, способ приготовления..."></textarea>
+      <div class="loading" id="db-loading"><div class="spinner"></div><span>Анализирую рецепт...</span></div>
+      <div class="error-msg" id="db-error"></div>
       <button class="gen-btn" onclick="saveManual()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">Сохранить в базу</button>
     </div>
 
@@ -337,7 +310,7 @@
         <span class="db-count" id="db-count">0 рецептов</span>
       </div>
       <div class="db-list" id="db-list">
-        <div class="db-empty">База пуста. Добавь первый рецепт из Instagram или вручную!</div>
+        <div class="db-empty">База пуста. Добавь первый рецепт!</div>
       </div>
     </div>
   </div>
@@ -345,324 +318,308 @@
 </div>
 
 <script>
-// State
-let currentMode = 'cut';
-let currentFmt = 'quick';
-let recipeDB = JSON.parse(localStorage.getItem('chefbot_db') || '[]');
+  const PROXY_URL = "https://chefbot-proxy.ponomarevbogdan2013.workers.dev";
 
-// Mode toggle
-function setMode(mode, btn) {
-  currentMode = mode;
-  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  // Update defaults
-  if (mode === 'cut') {
-    document.getElementById('kcal').value = 2000;
-    document.getElementById('protein').value = 180;
-    document.getElementById('fat').value = 60;
-    document.getElementById('carbs').value = 180;
-  } else {
-    document.getElementById('kcal').value = 2800;
-    document.getElementById('protein').value = 160;
-    document.getElementById('fat').value = 90;
-    document.getElementById('carbs').value = 300;
+  let currentMode = 'cut';
+  let currentFmt = 'quick';
+  let lastRecipeText = '';
+  let recipeDB = JSON.parse(localStorage.getItem('chefbot_db') || '[]');
+
+  // Вызов Gemini API
+  async function callGemini(prompt) {
+    const response = await fetch(PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.8, maxOutputTokens: 1500 }
+      })
+    });
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    return data.candidates[0].content.parts[0].text;
   }
-}
 
-// Tab switch
-function switchTab(tab, btn) {
-  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('tab-' + tab).classList.add('active');
-  if (tab === 'db') renderDB();
-}
+  // Режим
+  function setMode(mode, btn) {
+    currentMode = mode;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (mode === 'cut') {
+      document.getElementById('kcal').value = 2000;
+      document.getElementById('protein').value = 180;
+      document.getElementById('fat').value = 60;
+      document.getElementById('carbs').value = 180;
+    } else {
+      document.getElementById('kcal').value = 2800;
+      document.getElementById('protein').value = 160;
+      document.getElementById('fat').value = 90;
+      document.getElementById('carbs').value = 300;
+    }
+  }
 
-// Format buttons
-document.getElementById('fmt-row').addEventListener('click', e => {
-  const btn = e.target.closest('.fmt-btn');
-  if (!btn) return;
-  document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  currentFmt = btn.dataset.fmt;
-});
+  // Табы
+  function switchTab(tab, btn) {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + tab).classList.add('active');
+    if (tab === 'db') renderDB();
+  }
 
-// Get KBJU context
-function getKBJU() {
-  return {
-    kcal: document.getElementById('kcal').value || 2000,
-    protein: document.getElementById('protein').value || 180,
-    fat: document.getElementById('fat').value || 60,
-    carbs: document.getElementById('carbs').value || 180,
-    mode: currentMode === 'cut' ? 'сушка (дефицит калорий)' : 'набор массы (профицит)'
-  };
-}
-
-// Format label
-function fmtLabel() {
-  const map = { quick: 'быстрый (до 15 минут)', normal: 'обычный (30–40 минут)', prep: 'заготовка на 3–5 дней', all: 'все форматы: быстрый, обычный и заготовка на несколько дней' };
-  return map[currentFmt] || 'быстрый';
-}
-
-// DB context
-function getDBContext() {
-  if (!recipeDB.length) return '';
-  const names = recipeDB.map(r => r.name).join(', ');
-  return `\n\nТакже у пользователя в базе любимых рецептов есть: ${names}. Если уместно — упомяни похожие техники приготовления.`;
-}
-
-// API call
-async function callClaude(prompt) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: prompt }]
-    })
+  // Формат
+  document.getElementById('fmt-row').addEventListener('click', e => {
+    const btn = e.target.closest('.fmt-btn');
+    if (!btn) return;
+    document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFmt = btn.dataset.fmt;
   });
-  const data = await response.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.content.map(b => b.text || '').join('');
-}
 
-// Extract KBJU from response
-function extractKBJU(text) {
-  const kcal = text.match(/(\d+)\s*ккал/i)?.[1];
-  const prot = text.match(/белок[:\s]+(\d+)/i)?.[1] || text.match(/Б[:\s]+(\d+)/i)?.[1];
-  const fat = text.match(/жир[ы]?[:\s]+(\d+)/i)?.[1] || text.match(/Ж[:\s]+(\d+)/i)?.[1];
-  const carb = text.match(/углев[а-я]+[:\s]+(\d+)/i)?.[1] || text.match(/У[:\s]+(\d+)/i)?.[1];
-  return { kcal, prot, fat, carb };
-}
+  // КБЖУ контекст
+  function getKBJU() {
+    return {
+      kcal: document.getElementById('kcal').value,
+      protein: document.getElementById('protein').value,
+      fat: document.getElementById('fat').value,
+      carbs: document.getElementById('carbs').value,
+      mode: currentMode === 'cut' ? 'сушка (дефицит калорий)' : 'набор массы (профицит)'
+    };
+  }
 
-function renderPills(container, kbju) {
-  container.innerHTML = '';
-  if (kbju.kcal) container.innerHTML += `<span class="pill kcal">${kbju.kcal} ккал</span>`;
-  if (kbju.prot) container.innerHTML += `<span class="pill protein">Б ${kbju.prot}г</span>`;
-  if (kbju.fat) container.innerHTML += `<span class="pill fat">Ж ${kbju.fat}г</span>`;
-  if (kbju.carb) container.innerHTML += `<span class="pill carb">У ${kbju.carb}г</span>`;
-}
+  function fmtLabel() {
+    const map = {
+      quick: 'быстрый (до 15 минут)',
+      normal: 'обычный (30–40 минут)',
+      prep: 'заготовка на 3–5 дней (несколько порций)',
+      all: 'три варианта: быстрый, обычный и заготовка на несколько дней'
+    };
+    return map[currentFmt];
+  }
 
-// Generate from fridge
-async function generateFridge() {
-  const ingredients = document.getElementById('fridge-input').value.trim();
-  if (!ingredients) { showError('fridge-error', 'Укажи что есть в холодильнике'); return; }
+  // Извлечь КБЖУ из текста
+  function extractKBJU(text) {
+    const kcal = text.match(/(\d+)\s*ккал/i)?.[1];
+    const prot = text.match(/Б\s*(\d+)/i)?.[1] || text.match(/белок[:\s]+(\d+)/i)?.[1];
+    const fat  = text.match(/Ж\s*(\d+)/i)?.[1] || text.match(/жир[:\s]+(\d+)/i)?.[1];
+    const carb = text.match(/У\s*(\d+)/i)?.[1] || text.match(/углев[а-я]+[:\s]+(\d+)/i)?.[1];
+    return { kcal, prot, fat, carb };
+  }
 
-  const kbju = getKBJU();
-  const loading = document.getElementById('fridge-loading');
-  const result = document.getElementById('fridge-result');
-  const btn = document.querySelector('#tab-fridge .gen-btn');
+  function renderPills(container, kbju) {
+    container.innerHTML = '';
+    if (kbju.kcal) container.innerHTML += `<span class="pill kcal">${kbju.kcal} ккал</span>`;
+    if (kbju.prot) container.innerHTML += `<span class="pill protein">Б ${kbju.prot}г</span>`;
+    if (kbju.fat)  container.innerHTML += `<span class="pill fat">Ж ${kbju.fat}г</span>`;
+    if (kbju.carb) container.innerHTML += `<span class="pill carb">У ${kbju.carb}г</span>`;
+  }
 
-  loading.classList.add('visible');
-  result.classList.remove('visible');
-  btn.disabled = true;
-  hideError('fridge-error');
+  // Из холодильника
+  async function generateFridge() {
+    const ingredients = document.getElementById('fridge-input').value.trim();
+    if (!ingredients) { showError('fridge-error', 'Укажи что есть в холодильнике'); return; }
 
-  try {
-    const prompt = `Ты шеф-повар, который готовит очень вкусно как крутые фуд-блогеры — ярко, сочно, с балансом вкусов. Без пафоса, без мишленовских понтов. Просто по-настоящему вкусно.
+    const k = getKBJU();
+    const dbNames = recipeDB.map(r => r.name).join(', ');
+    const dbHint = dbNames ? `\nВ базе уже есть рецепты: ${dbNames}. Предложи что-то другое или похожее по технике.` : '';
 
-Пользователь на ${kbju.mode}. Его цели на день: ${kbju.kcal} ккал, белок ${kbju.protein}г, жир ${kbju.fat}г, углеводы ${kbju.carbs}г.
+    setLoading('fridge', true);
+    hideError('fridge-error');
+    document.getElementById('fridge-result').classList.remove('visible');
+
+    try {
+      const prompt = `Ты шеф-повар который готовит очень вкусно — как крутые фуд-блогеры. Ярко, сочно, с балансом вкусов. Без пафоса — просто реально вкусно.
+
+Пользователь на ${k.mode}.
+Цели: ${k.kcal} ккал, белок ${k.protein}г, жир ${k.fat}г, углеводы ${k.carbs}г.
+${dbHint}
 
 Доступные ингредиенты: ${ingredients}
+Формат: ${fmtLabel()}
 
-Предложи рецепт в формате: ${fmtLabel()}.${getDBContext()}
+Ответь строго в таком формате:
 
-Структура ответа:
-— Название блюда (яркое, аппетитное)
-— Почему это вкусно (1–2 предложения — про вкусовой баланс, текстуры)
-— Ингредиенты с точными граммами на порцию
-— Пошаговый рецепт (конкретно, без воды)
-— КБЖУ на порцию: ккал / Б / Ж / У в граммах
-— 1 фишка от шефа (что делает это блюдо реально вкусным)
+🍽 НАЗВАНИЕ БЛЮДА
 
-Пиши по-русски. Будь конкретным с граммами. Не используй экзотические ингредиенты которых нет в списке.`;
+💬 Почему вкусно (1-2 предложения про вкусовой баланс и текстуры)
 
-    const text = await callClaude(prompt);
-    const kbju_res = extractKBJU(text);
+📦 Ингредиенты (с точными граммами на порцию):
+• ...
 
-    document.getElementById('fridge-result-title').textContent = '';
-    document.getElementById('fridge-result-body').textContent = text;
-    renderPills(document.getElementById('fridge-pills'), kbju_res);
-    result.classList.add('visible');
-  } catch(e) {
-    showError('fridge-error', 'Ошибка: ' + e.message);
-  } finally {
-    loading.classList.remove('visible');
-    btn.disabled = false;
+👨‍🍳 Приготовление:
+1. ...
+
+📊 КБЖУ на порцию: X ккал / Б Xг / Ж Xг / У Xг
+
+🔥 Фишка шефа: что делает это блюдо реально вкусным
+
+Пиши по-русски. Конкретные граммы обязательно.`;
+
+      const text = await callGemini(prompt);
+      lastRecipeText = text;
+
+      document.getElementById('fridge-result-body').textContent = text;
+      renderPills(document.getElementById('fridge-pills'), extractKBJU(text));
+      document.getElementById('fridge-result').classList.add('visible');
+    } catch(e) {
+      showError('fridge-error', 'Ошибка: ' + e.message);
+    } finally {
+      setLoading('fridge', false);
+    }
   }
-}
 
-// Generate day plan
-async function generatePlan() {
-  const kbju = getKBJU();
-  const prefs = document.getElementById('plan-input').value.trim();
-  const loading = document.getElementById('plan-loading');
-  const result = document.getElementById('plan-result');
-  const btn = document.querySelector('#tab-plan .gen-btn');
-
-  loading.classList.add('visible');
-  result.classList.remove('visible');
-  btn.disabled = true;
-  hideError('plan-error');
-
-  try {
-    const dbCtx = recipeDB.length ? `\n\nВ базе любимых рецептов пользователя: ${recipeDB.map(r=>r.name).join(', ')}. Включи 1–2 из них если подходят по КБЖУ.` : '';
-
-    const prompt = `Ты нутрициолог и шеф-повар одновременно. Составь меню на день — вкусное, реалистичное, с точным попаданием в КБЖУ.
-
-Режим: ${kbju.mode}
-Цели: ${kbju.kcal} ккал, белок ${kbju.protein}г, жир ${kbju.fat}г, углеводы ${kbju.carbs}г
-${prefs ? `Пожелания: ${prefs}` : ''}${dbCtx}
-
-Формат:
-МЕНЮ НА ДЕНЬ
-
-🌅 Завтрак (~XX ккал)
-Название блюда — краткий рецепт (3–4 шага), граммы ингредиентов
-КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
-
-🍱 Обед (~XX ккал)
-...
-
-🥗 Перекус (~XX ккал)
-...
-
-🍽 Ужин (~XX ккал)
-...
-
-ИТОГО ЗА ДЕНЬ: X ккал / Б Xг / Ж Xг / У Xг
-
-📋 Список покупок (что нужно докупить, без базовых специй)
-
-Пиши по-русски. Блюда должны быть реально вкусными, не скучными куриными грудками с гречкой.`;
-
-    const text = await callClaude(prompt);
-    document.getElementById('plan-result-body').textContent = text;
-    result.classList.add('visible');
-  } catch(e) {
-    showError('plan-error', 'Ошибка: ' + e.message);
-  } finally {
-    loading.classList.remove('visible');
-    btn.disabled = false;
+  // Сохранить текущий рецепт
+  async function saveCurrentRecipe() {
+    if (!lastRecipeText) return;
+    await parseAndSave(lastRecipeText);
   }
-}
 
-// Save manual recipe to DB
-async function saveManual() {
-  const text = document.getElementById('ig-manual').value.trim();
-  const igUrl = document.getElementById('ig-url').value.trim();
-  if (!text && !igUrl) { showError('ig-error', 'Вставь ссылку или опиши рецепт'); return; }
+  // Сохранить вручную
+  async function saveManual() {
+    const text = document.getElementById('manual-recipe').value.trim();
+    if (!text) { showError('db-error', 'Вставь текст рецепта'); return; }
+    setLoading('db', true);
+    hideError('db-error');
+    await parseAndSave(text);
+    document.getElementById('manual-recipe').value = '';
+    setLoading('db', false);
+  }
 
-  const loading = document.getElementById('ig-loading');
-  const btn = document.querySelector('#tab-db .gen-btn');
-  loading.classList.add('visible');
-  btn.disabled = true;
-  hideError('ig-error');
-
-  try {
-    const input = text || `Рецепт из Instagram: ${igUrl}`;
-    const prompt = `Проанализируй этот рецепт и верни JSON (только JSON, без markdown):
+  // Парсинг и сохранение рецепта
+  async function parseAndSave(text) {
+    try {
+      const prompt = `Из этого текста извлеки рецепт и верни ТОЛЬКО JSON без markdown:
 {
   "name": "название блюда",
-  "ingredients": ["ингредиент 1", "ингредиент 2"],
+  "ingredients": ["ингредиент с граммами"],
   "time": "время приготовления",
   "kcal": число или null,
-  "protein": число или null,
-  "tags": ["тег1", "тег2"],
+  "tags": ["тег"],
   "summary": "одно предложение о блюде"
 }
 
-Рецепт: ${input}`;
+Текст: ${text}`;
 
-    const response = await callClaude(prompt);
-    let parsed;
-    try {
+      const response = await callGemini(prompt);
       const clean = response.replace(/```json|```/g, '').trim();
-      parsed = JSON.parse(clean);
-    } catch {
-      parsed = { name: text.split('\n')[0].substring(0,50) || 'Рецепт из Instagram', ingredients: [], time: 'неизвестно', kcal: null, tags: [], summary: text.substring(0,100) };
+      let data;
+      try { data = JSON.parse(clean); }
+      catch { data = { name: text.split('\n')[0].replace('🍽','').trim().substring(0,50), ingredients: [], time: '?', kcal: null, tags: [], summary: '' }; }
+
+      const recipe = {
+        id: Date.now(),
+        name: data.name || 'Рецепт',
+        ingredients: data.ingredients || [],
+        time: data.time || '?',
+        kcal: data.kcal,
+        tags: data.tags || [],
+        summary: data.summary || '',
+        addedAt: new Date().toLocaleDateString('ru')
+      };
+
+      recipeDB.unshift(recipe);
+      localStorage.setItem('chefbot_db', JSON.stringify(recipeDB));
+      renderDB();
+      switchTab('db', document.querySelectorAll('.tab')[2]);
+    } catch(e) {
+      showError('db-error', 'Ошибка сохранения: ' + e.message);
     }
-
-    const recipe = {
-      id: Date.now(),
-      name: parsed.name || 'Новый рецепт',
-      ingredients: parsed.ingredients || [],
-      time: parsed.time || '?',
-      kcal: parsed.kcal,
-      protein: parsed.protein,
-      tags: parsed.tags || [],
-      summary: parsed.summary || '',
-      source: igUrl || 'вручную',
-      addedAt: new Date().toLocaleDateString('ru')
-    };
-
-    recipeDB.unshift(recipe);
-    localStorage.setItem('chefbot_db', JSON.stringify(recipeDB));
-    document.getElementById('ig-manual').value = '';
-    document.getElementById('ig-url').value = '';
-    renderDB();
-    switchTab('db', document.querySelectorAll('.tab')[2]);
-  } catch(e) {
-    showError('ig-error', 'Ошибка: ' + e.message);
-  } finally {
-    loading.classList.remove('visible');
-    btn.disabled = false;
-  }
-}
-
-// Add from IG (same as manual with URL)
-function addFromIG() {
-  const url = document.getElementById('ig-url').value.trim();
-  if (!url) { showError('ig-error', 'Вставь ссылку на Instagram'); return; }
-  document.getElementById('ig-manual').value = `Рецепт из этого поста Instagram: ${url}\nПожалуйста, извлеки и структурируй рецепт.`;
-  saveManual();
-}
-
-// Render DB
-function renderDB() {
-  const list = document.getElementById('db-list');
-  const count = document.getElementById('db-count');
-  count.textContent = recipeDB.length + ' рецептов';
-
-  if (!recipeDB.length) {
-    list.innerHTML = '<div class="db-empty">База пуста. Добавь первый рецепт!</div>';
-    return;
   }
 
-  list.innerHTML = recipeDB.map(r => `
-    <div class="db-item">
-      <div class="db-item-info">
-        <div class="db-item-name">${r.name}</div>
-        <div class="db-item-meta">${r.time} · ${r.kcal ? r.kcal+'ккал' : ''} · ${r.tags.slice(0,3).join(', ')} · добавлен ${r.addedAt}</div>
-        ${r.summary ? `<div class="db-item-meta" style="margin-top:2px;font-style:italic">${r.summary}</div>` : ''}
+  // План на день
+  async function generatePlan() {
+    const k = getKBJU();
+    const prefs = document.getElementById('plan-input').value.trim();
+    const dbNames = recipeDB.map(r => r.name).join(', ');
+    const dbHint = dbNames ? `\nВключи 1-2 блюда из базы пользователя если подходят: ${dbNames}` : '';
+
+    setLoading('plan', true);
+    hideError('plan-error');
+    document.getElementById('plan-result').classList.remove('visible');
+
+    try {
+      const prompt = `Ты нутрициолог и шеф-повар. Составь меню на день — вкусное, реалистичное, с точным попаданием в КБЖУ.
+
+Режим: ${k.mode}
+Цели: ${k.kcal} ккал, белок ${k.protein}г, жир ${k.fat}г, углеводы ${k.carbs}г
+${prefs ? `Пожелания: ${prefs}` : ''}${dbHint}
+
+Формат:
+
+🌅 ЗАВТРАК (~XX ккал)
+Название — краткий рецепт (3-4 шага с граммами)
+КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
+
+🍱 ОБЕД (~XX ккал)
+Название — краткий рецепт
+КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
+
+🥗 ПЕРЕКУС (~XX ккал)
+Название
+КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
+
+🍽 УЖИН (~XX ккал)
+Название — краткий рецепт
+КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
+
+📊 ИТОГО: X ккал / Б Xг / Ж Xг / У Xг
+
+🛒 Докупить: список продуктов
+
+Блюда должны быть реально вкусными. Пиши по-русски.`;
+
+      const text = await callGemini(prompt);
+      document.getElementById('plan-result-body').textContent = text;
+      document.getElementById('plan-result').classList.add('visible');
+    } catch(e) {
+      showError('plan-error', 'Ошибка: ' + e.message);
+    } finally {
+      setLoading('plan', false);
+    }
+  }
+
+  // Рендер базы
+  function renderDB() {
+    const list = document.getElementById('db-list');
+    document.getElementById('db-count').textContent = recipeDB.length + ' рецептов';
+    if (!recipeDB.length) {
+      list.innerHTML = '<div class="db-empty">База пуста. Добавь первый рецепт!</div>';
+      return;
+    }
+    list.innerHTML = recipeDB.map(r => `
+      <div class="db-item">
+        <div class="db-item-info">
+          <div class="db-item-name">${r.name}</div>
+          <div class="db-item-meta">${r.time} · ${r.kcal ? r.kcal+'ккал · ' : ''}добавлен ${r.addedAt}</div>
+          ${r.summary ? `<div class="db-item-meta" style="margin-top:2px;font-style:italic">${r.summary}</div>` : ''}
+        </div>
+        <button class="db-item-use" onclick="useRecipe(${r.id})">Готовить</button>
       </div>
-      <button class="db-item-use" onclick="useRecipe(${r.id})">Приготовить</button>
-    </div>
-  `).join('');
-}
+    `).join('');
+  }
 
-// Use recipe from DB
-function useRecipe(id) {
-  const r = recipeDB.find(x => x.id === id);
-  if (!r) return;
-  document.getElementById('fridge-input').value = r.ingredients.join(', ');
-  switchTab('fridge', document.querySelectorAll('.tab')[0]);
-  document.getElementById('fridge-input').focus();
-}
+  function useRecipe(id) {
+    const r = recipeDB.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('fridge-input').value = r.ingredients.join(', ');
+    switchTab('fridge', document.querySelectorAll('.tab')[0]);
+  }
 
-// Error helpers
-function showError(id, msg) {
-  const el = document.getElementById(id);
-  el.textContent = msg;
-  el.classList.add('visible');
-}
-function hideError(id) {
-  document.getElementById(id).classList.remove('visible');
-}
+  // Helpers
+  function setLoading(id, show) {
+    document.getElementById(id + '-loading').classList.toggle('visible', show);
+    const btn = document.querySelector('#tab-' + id + ' .gen-btn');
+    if (btn) btn.disabled = show;
+  }
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg; el.classList.add('visible');
+  }
+  function hideError(id) {
+    document.getElementById(id).classList.remove('visible');
+  }
 
-// Init
-renderDB();
+  renderDB();
 </script>
 </body>
 </html>
