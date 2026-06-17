@@ -1,430 +1,668 @@
-import asyncio
-import os
-import json
-import asyncpg
-from dotenv import load_dotenv
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Шеф-бот</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@700;800&display=swap');
 
-from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
-from aiogram.filters import CommandStart, Command
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.storage.memory import MemoryStorage
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-import google.generativeai as genai
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #2e2e2e;
+    --accent: #ff6b35;
+    --accent2: #ffd60a;
+    --text: #f0f0f0;
+    --muted: #888;
+    --green: #4ade80;
+    --radius: 14px;
+  }
 
-load_dotenv()
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 40px;
+  }
 
-# Инициализация
-bot = Bot(token=os.getenv("TELEGRAM_TOKEN"))
-dp = Dispatcher(storage=MemoryStorage())
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-gemini = genai.GenerativeModel("gemini-1.5-flash")
-DATABASE_URL = os.getenv("DATABASE_URL")
+  .header {
+    text-align: center;
+    margin-bottom: 28px;
+    padding-top: 8px;
+  }
+  .header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+  }
+  .header p { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
 
-# States
-class SetupKBJU(StatesGroup):
-    waiting_kcal = State()
-    waiting_protein = State()
-    waiting_fat = State()
-    waiting_carbs = State()
+  .container { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 16px; }
 
-# БД — подключение
-async def get_db():
-    return await asyncpg.connect(DATABASE_URL)
+  /* KBJU bar */
+  .kbju-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .kbju-bar label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  .kbju-inputs { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+  .kbju-field { display: flex; flex-direction: column; gap: 3px; }
+  .kbju-field span { font-size: 0.65rem; color: var(--muted); }
+  .kbju-field input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.85rem;
+    padding: 5px 8px;
+    width: 72px;
+    outline: none;
+  }
+  .kbju-field input:focus { border-color: var(--accent); }
+  .mode-toggle { display: flex; gap: 6px; }
+  .mode-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 
-# Получить профиль
-async def get_profile(user_id):
-    db = await get_db()
-    try:
-        row = await db.fetchrow("SELECT * FROM profiles WHERE user_id=$1", user_id)
-        if row:
-            return dict(row)
-        await db.execute(
-            "INSERT INTO profiles(user_id,mode,kcal,protein,fat,carbs) VALUES($1,$2,$3,$4,$5,$6)",
-            user_id, "cut", 2000, 180, 60, 180
-        )
-        return {"user_id": user_id, "mode": "cut", "kcal": 2000, "protein": 180, "fat": 60, "carbs": 180}
-    finally:
-        await db.close()
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; background: var(--surface); border-radius: var(--radius); padding: 5px; }
+  .tab {
+    flex: 1; padding: 9px 8px; border: none; border-radius: 10px;
+    background: transparent; color: var(--muted); font-size: 0.8rem;
+    cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif;
+    text-align: center; font-weight: 500;
+  }
+  .tab.active { background: var(--surface2); color: var(--text); }
+  .tab:hover:not(.active) { color: var(--text); }
 
-# Обновить профиль
-async def update_profile(user_id, **kwargs):
-    db = await get_db()
-    try:
-        sets = ", ".join([f"{k}=${i+2}" for i, k in enumerate(kwargs)])
-        vals = list(kwargs.values())
-        await db.execute(f"UPDATE profiles SET {sets} WHERE user_id=$1", user_id, *vals)
-    finally:
-        await db.close()
+  /* Panels */
+  .panel { display: none; flex-direction: column; gap: 12px; }
+  .panel.active { display: flex; }
 
-# История блюд
-async def get_history(user_id):
-    db = await get_db()
-    try:
-        rows = await db.fetch(
-            "SELECT recipe_name FROM history WHERE user_id=$1 ORDER BY cooked_at DESC LIMIT 7",
-            user_id
-        )
-        return [r["recipe_name"] for r in rows]
-    finally:
-        await db.close()
+  /* Input areas */
+  .input-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .input-area label { font-size: 0.8rem; color: var(--muted); }
+  textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    padding: 10px 12px;
+    resize: vertical;
+    min-height: 80px;
+    outline: none;
+    width: 100%;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
 
-async def save_history(user_id, name):
-    db = await get_db()
-    try:
-        await db.execute(
-            "INSERT INTO history(user_id, recipe_name) VALUES($1,$2)",
-            user_id, name
-        )
-    finally:
-        await db.close()
+  /* Format selector */
+  .format-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .fmt-btn {
+    padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); font-size: 0.78rem;
+    cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif;
+  }
+  .fmt-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(255,107,53,0.08); }
 
-# Сохранить рецепт
-async def save_recipe(user_id, data, source):
-    db = await get_db()
-    try:
-        await db.execute(
-            """INSERT INTO recipes(user_id,name,ingredients,time_minutes,kcal,protein,fat,carbs,tags,summary,source)
-               VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)""",
-            user_id,
-            data.get("name", "Рецепт"),
-            data.get("ingredients", []),
-            data.get("time_minutes"),
-            data.get("kcal"),
-            data.get("protein"),
-            data.get("fat"),
-            data.get("carbs"),
-            data.get("tags", []),
-            data.get("summary", ""),
-            source
-        )
-    finally:
-        await db.close()
+  /* Generate button */
+  .gen-btn {
+    background: linear-gradient(135deg, var(--accent), #ff8c5a);
+    border: none; border-radius: 12px; color: #fff;
+    font-family: 'Syne', sans-serif; font-size: 1rem; font-weight: 700;
+    padding: 13px; cursor: pointer; transition: all 0.2s; width: 100%;
+    letter-spacing: 0.3px;
+  }
+  .gen-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .gen-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-# Получить рецепты
-async def get_recipes(user_id):
-    db = await get_db()
-    try:
-        rows = await db.fetch(
-            "SELECT * FROM recipes WHERE user_id=$1 ORDER BY created_at DESC LIMIT 10",
-            user_id
-        )
-        return [dict(r) for r in rows]
-    finally:
-        await db.close()
+  /* Result */
+  .result-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .result-box.visible { display: flex; }
+  .result-header { display: flex; justify-content: space-between; align-items: center; }
+  .result-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; }
+  .kbju-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill {
+    padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+  }
+  .pill.kcal { background: rgba(255,214,10,0.15); color: var(--accent2); border: 1px solid rgba(255,214,10,0.3); }
+  .pill.protein { background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.25); }
+  .pill.fat { background: rgba(251,146,60,0.12); color: #fb923c; border: 1px solid rgba(251,146,60,0.25); }
+  .pill.carb { background: rgba(147,197,253,0.12); color: #93c5fd; border: 1px solid rgba(147,197,253,0.25); }
+  .result-body { font-size: 0.88rem; line-height: 1.8; color: #d0d0d0; white-space: pre-wrap; }
 
-# КБЖУ контекст
-def kbju_context(p):
-    mode = "сушка (дефицит калорий)" if p["mode"] == "cut" else "набор массы (профицит)"
-    return (f"Режим пользователя: {mode}\n"
-            f"Цели на день: {p['kcal']} ккал, "
-            f"белок {p['protein']}г, жир {p['fat']}г, углеводы {p['carbs']}г")
+  /* DB section */
+  .db-header { display: flex; justify-content: space-between; align-items: center; }
+  .db-header h3 { font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700; }
+  .db-count { font-size: 0.75rem; color: var(--muted); }
+  .db-list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+  .db-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .db-item-info { flex: 1; }
+  .db-item-name { font-size: 0.88rem; font-weight: 600; margin-bottom: 2px; }
+  .db-item-meta { font-size: 0.72rem; color: var(--muted); }
+  .db-item-use {
+    padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); font-size: 0.72rem;
+    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    font-family: 'Inter', sans-serif;
+  }
+  .db-item-use:hover { border-color: var(--accent); color: var(--accent); }
 
-# Главное меню
-def main_menu():
-    return ReplyKeyboardMarkup(keyboard=[
-        [KeyboardButton(text="🧊 Из холодильника"), KeyboardButton(text="📅 План на день")],
-        [KeyboardButton(text="📚 Мои рецепты"),     KeyboardButton(text="⚙️ Мой профиль")],
-        [KeyboardButton(text="🔄 Сушка / Набор")]
-    ], resize_keyboard=True)
+  /* Instagram input */
+  .ig-area { display: flex; gap: 8px; }
+  .ig-area input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-family: 'Inter', sans-serif;
+    font-size: 0.88rem; padding: 10px 12px; outline: none;
+  }
+  .ig-area input:focus { border-color: var(--accent); }
+  .ig-area input::placeholder { color: var(--muted); }
+  .ig-add-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); padding: 10px 16px;
+    cursor: pointer; font-size: 0.85rem; white-space: nowrap;
+    font-family: 'Inter', sans-serif; transition: all 0.2s;
+  }
+  .ig-add-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-# /start
-@dp.message(CommandStart())
-async def cmd_start(message: Message):
-    await get_profile(message.from_user.id)
-    await message.answer(
-        "👨‍🍳 *Привет! Я твой личный шеф-бот.*\n\n"
-        "Скажу что приготовить из того что есть, "
-        "составлю план питания под твои КБЖУ, "
-        "сохраню рецепты из Instagram.\n\n"
-        "Выбирай что нужно 👇",
-        parse_mode="Markdown",
-        reply_markup=main_menu()
-    )
+  /* Loading */
+  .loading { display: none; align-items: center; gap: 10px; color: var(--muted); font-size: 0.85rem; padding: 8px 0; }
+  .loading.visible { display: flex; }
+  .spinner {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-# Профиль
-@dp.message(F.text == "⚙️ Мой профиль")
-async def show_profile(message: Message):
-    p = await get_profile(message.from_user.id)
-    history = await get_history(message.from_user.id)
-    mode = "🔥 Сушка" if p["mode"] == "cut" else "💪 Набор"
-    hist_text = ", ".join(history) if history else "пока пусто"
-    await message.answer(
-        f"*Твой профиль:*\n\n"
-        f"Режим: {mode}\n"
-        f"Калории: {p['kcal']} ккал\n"
-        f"Белок: {p['protein']}г | Жир: {p['fat']}г | Углеводы: {p['carbs']}г\n\n"
-        f"*Последние блюда:* {hist_text}\n\n"
-        f"Изменить КБЖУ: /setkbju",
-        parse_mode="Markdown"
-    )
+  /* Empty db */
+  .db-empty { color: var(--muted); font-size: 0.82rem; text-align: center; padding: 24px 0; }
 
-# Переключить режим
-@dp.message(F.text == "🔄 Сушка / Набор")
-async def toggle_mode(message: Message):
-    p = await get_profile(message.from_user.id)
-    new_mode = "bulk" if p["mode"] == "cut" else "cut"
-    defaults = {
-        "cut":  (2000, 180, 60, 180),
-        "bulk": (2800, 160, 90, 300)
-    }
-    kcal, prot, fat, carbs = defaults[new_mode]
-    await update_profile(message.from_user.id,
-                         mode=new_mode, kcal=kcal,
-                         protein=prot, fat=fat, carbs=carbs)
-    label = "💪 Набор массы" if new_mode == "bulk" else "🔥 Сушка"
-    await message.answer(
-        f"Переключил на *{label}*\n"
-        f"Новые цели: {kcal} ккал / Б{prot} / Ж{fat} / У{carbs}\n\n"
-        f"Изменить вручную: /setkbju",
-        parse_mode="Markdown"
-    )
+  .error-msg { color: #f87171; font-size: 0.82rem; padding: 6px 0; display: none; }
+  .error-msg.visible { display: block; }
 
-# Установить КБЖУ
-@dp.message(Command("setkbju"))
-async def set_kbju_start(message: Message, state: FSMContext):
-    await state.set_state(SetupKBJU.waiting_kcal)
-    await message.answer("Введи целевые калории в день (например: 2200)")
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
 
-@dp.message(SetupKBJU.waiting_kcal)
-async def set_kcal(message: Message, state: FSMContext):
-    await state.update_data(kcal=int(message.text))
-    await state.set_state(SetupKBJU.waiting_protein)
-    await message.answer("Белок в граммах (например: 180)")
+<div class="header">
+  <h1>🔥 Шеф-бот</h1>
+  <p>Вкусно. В КБЖУ. Без лишнего.</p>
+</div>
 
-@dp.message(SetupKBJU.waiting_protein)
-async def set_protein(message: Message, state: FSMContext):
-    await state.update_data(protein=int(message.text))
-    await state.set_state(SetupKBJU.waiting_fat)
-    await message.answer("Жиры в граммах (например: 60)")
+<div class="container">
 
-@dp.message(SetupKBJU.waiting_fat)
-async def set_fat(message: Message, state: FSMContext):
-    await state.update_data(fat=int(message.text))
-    await state.set_state(SetupKBJU.waiting_carbs)
-    await message.answer("Углеводы в граммах (например: 180)")
+  <!-- КБЖУ профиль -->
+  <div class="kbju-bar">
+    <label>Цель</label>
+    <div class="mode-toggle">
+      <button class="mode-btn active" onclick="setMode('cut', this)">Сушка</button>
+      <button class="mode-btn" onclick="setMode('bulk', this)">Набор</button>
+    </div>
+    <div class="kbju-inputs">
+      <div class="kbju-field"><span>Ккал</span><input type="number" id="kcal" value="2000" placeholder="2000"></div>
+      <div class="kbju-field"><span>Белок г</span><input type="number" id="protein" value="180" placeholder="180"></div>
+      <div class="kbju-field"><span>Жир г</span><input type="number" id="fat" value="60" placeholder="60"></div>
+      <div class="kbju-field"><span>Углей г</span><input type="number" id="carbs" value="180" placeholder="180"></div>
+    </div>
+  </div>
 
-@dp.message(SetupKBJU.waiting_carbs)
-async def set_carbs(message: Message, state: FSMContext):
-    data = await state.get_data()
-    data["carbs"] = int(message.text)
-    await update_profile(message.from_user.id, **data)
-    await state.clear()
-    await message.answer(
-        f"✅ Сохранил!\n"
-        f"{data['kcal']} ккал / Б{data['protein']} / Ж{data['fat']} / У{data['carbs']}",
-        reply_markup=main_menu()
-    )
+  <!-- Табы -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('fridge', this)">🧊 Из холодильника</button>
+    <button class="tab" onclick="switchTab('plan', this)">📅 План на день</button>
+    <button class="tab" onclick="switchTab('db', this)">📚 Моя база</button>
+  </div>
 
-# Из холодильника — подсказка
-@dp.message(F.text == "🧊 Из холодильника")
-async def fridge_hint(message: Message):
-    await message.answer(
-        "Напиши что есть через запятую:\n\n"
-        "_Например: куриная грудка, яйца, брокколи, рис, чеснок_\n\n"
-        "Можешь добавить пожелание:\n"
-        "• *быстро* — до 15 минут\n"
-        "• *нормально* — 30-40 минут\n"
-        "• *заготовка* — на несколько дней",
-        parse_mode="Markdown"
-    )
+  <!-- Панель: Из холодильника -->
+  <div class="panel active" id="tab-fridge">
+    <div class="input-area">
+      <label>Что есть в холодильнике?</label>
+      <textarea id="fridge-input" placeholder="Например: куриная грудка, яйца, брокколи, рис, греческий йогурт, чеснок, лимон..."></textarea>
+      <div>
+        <label style="margin-bottom:6px;display:block">Формат приготовления:</label>
+        <div class="format-row" id="fmt-row">
+          <button class="fmt-btn active" data-fmt="quick">⚡ Быстро (до 15 мин)</button>
+          <button class="fmt-btn" data-fmt="normal">🍳 Нормально (30–40 мин)</button>
+          <button class="fmt-btn" data-fmt="prep">📦 Заготовка на 3–5 дней</button>
+          <button class="fmt-btn" data-fmt="all">🎯 Все варианты</button>
+        </div>
+      </div>
+    </div>
+    <div class="loading" id="fridge-loading"><div class="spinner"></div><span>Шеф думает...</span></div>
+    <div class="error-msg" id="fridge-error"></div>
+    <button class="gen-btn" onclick="generateFridge()">Придумать рецепт</button>
+    <div class="result-box" id="fridge-result">
+      <div class="result-header">
+        <div class="result-title" id="fridge-result-title"></div>
+        <div class="kbju-pills" id="fridge-pills"></div>
+      </div>
+      <div class="result-body" id="fridge-result-body"></div>
+    </div>
+  </div>
 
-# Мои рецепты
-@dp.message(F.text == "📚 Мои рецепты")
-async def my_recipes(message: Message):
-    recipes = await get_recipes(message.from_user.id)
-    if not recipes:
-        await message.answer(
-            "База пуста 📭\n\n"
-            "Отправь мне:\n"
-            "• Текст рецепта\n"
-            "• Описание блюда\n\n"
-            "И я сохраню его в базу!"
-        )
-        return
-    text = "📚 *Твои рецепты:*\n\n"
-    for i, r in enumerate(recipes, 1):
-        kcal = f"{r['kcal']} ккал" if r.get("kcal") else ""
-        text += f"{i}. *{r['name']}* {kcal}\n_{r.get('summary', '')}_\n\n"
-    await message.answer(text, parse_mode="Markdown")
+  <!-- Панель: План на день -->
+  <div class="panel" id="tab-plan">
+    <div class="input-area">
+      <label>Пожелания и ограничения (необязательно)</label>
+      <textarea id="plan-input" placeholder="Например: без глютена, не люблю рыбу, есть дома рис и курица, хочу 4 приёма пищи..." style="min-height:60px"></textarea>
+    </div>
+    <div class="loading" id="plan-loading"><div class="spinner"></div><span>Составляю меню...</span></div>
+    <div class="error-msg" id="plan-error"></div>
+    <button class="gen-btn" onclick="generatePlan()">Составить план питания</button>
+    <div class="result-box" id="plan-result">
+      <div class="result-header"><div class="result-title">📅 Меню на день</div></div>
+      <div class="result-body" id="plan-result-body"></div>
+    </div>
+  </div>
 
-# План на день
-@dp.message(F.text == "📅 План на день")
-async def day_plan(message: Message):
-    p = await get_profile(message.from_user.id)
-    history = await get_history(message.from_user.id)
-    hist_text = f"\nНе повторяй эти блюда: {', '.join(history)}" if history else ""
-    await message.answer("📅 Составляю меню...")
-    prompt = f"""Ты нутрициолог и шеф-повар. Составь меню на день — вкусное и реалистичное.
+  <!-- Панель: База рецептов -->
+  <div class="panel" id="tab-db">
+    <div class="input-area">
+      <label>Добавить рецепт из Instagram</label>
+      <div class="ig-area">
+        <input type="text" id="ig-url" placeholder="Вставь ссылку на пост или Reels из Instagram...">
+        <button class="ig-add-btn" onclick="addFromIG()">+ Добавить</button>
+      </div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:2px">
+        💡 Или опиши рецепт текстом — бот сохранит его в базу
+      </div>
+      <textarea id="ig-manual" placeholder="Или вставь описание рецепта вручную: название, ингредиенты, способ приготовления..." style="min-height:60px"></textarea>
+      <div class="loading" id="ig-loading"><div class="spinner"></div><span>Анализирую рецепт...</span></div>
+      <div class="error-msg" id="ig-error"></div>
+      <button class="gen-btn" onclick="saveManual()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">Сохранить в базу</button>
+    </div>
 
-{kbju_context(p)}
-{hist_text}
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:12px;">
+      <div class="db-header">
+        <h3>Мои рецепты</h3>
+        <span class="db-count" id="db-count">0 рецептов</span>
+      </div>
+      <div class="db-list" id="db-list">
+        <div class="db-empty">База пуста. Добавь первый рецепт из Instagram или вручную!</div>
+      </div>
+    </div>
+  </div>
 
-Формат ответа:
+</div>
 
-🌅 ЗАВТРАК (~XX ккал)
-Название — краткий рецепт (3-4 шага)
-КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
+<script>
+// State
+let currentMode = 'cut';
+let currentFmt = 'quick';
+let recipeDB = JSON.parse(localStorage.getItem('chefbot_db') || '[]');
 
-🍱 ОБЕД (~XX ккал)
-Название — краткий рецепт
-КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
-
-🥗 ПЕРЕКУС (~XX ккал)
-Название — что съесть
-КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
-
-🍽 УЖИН (~XX ккал)
-Название — краткий рецепт
-КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
-
-📊 ИТОГО: X ккал / Б Xг / Ж Xг / У Xг
-
-🛒 Докупить: список продуктов
-
-Блюда должны быть реально вкусными, не скучными. Пиши по-русски."""
-    try:
-        response = gemini.generate_content(prompt)
-        await message.answer(response.text, reply_markup=main_menu())
-    except Exception as e:
-        await message.answer(f"Ошибка: {e}")
-
-# Сохранить рецепт из текста через Gemini
-async def parse_and_save_recipe(message: Message, text: str, source: str):
-    await message.answer("🧠 Анализирую рецепт...")
-    prompt = f"""Из этого текста извлеки рецепт и верни ТОЛЬКО JSON без markdown и без пояснений:
-{{
-  "name": "название блюда",
-  "ingredients": ["ингредиент с граммами"],
-  "time_minutes": число,
-  "kcal": число или null,
-  "protein": число или null,
-  "fat": число или null,
-  "carbs": число или null,
-  "tags": ["тег"],
-  "summary": "одно предложение о блюде",
-  "steps": ["шаг 1", "шаг 2"]
-}}
-
-Текст: {text}"""
-    try:
-        response = gemini.generate_content(prompt)
-        clean = response.text.replace("```json", "").replace("```", "").strip()
-        data = json.loads(clean)
-        await save_recipe(message.from_user.id, data, source)
-        steps = "\n".join([f"{i+1}. {s}" for i, s in enumerate(data.get("steps", []))])
-        kcal_info = (
-            f"{data['kcal']} ккал / Б{data.get('protein','?')} / Ж{data.get('fat','?')} / У{data.get('carbs','?')}"
-            if data.get("kcal") else "КБЖУ не найдено"
-        )
-        await message.answer(
-            f"✅ *{data.get('name', 'Рецепт')}* сохранён в базу!\n\n"
-            f"📊 {kcal_info}\n\n"
-            f"👨‍🍳 Шаги:\n{steps}",
-            parse_mode="Markdown",
-            reply_markup=main_menu()
-        )
-    except Exception as e:
-        await message.answer(f"Не удалось разобрать рецепт: {e}")
-
-# Обработка любого текста
-MENU_BUTTONS = {
-    "🧊 Из холодильника", "📅 План на день",
-    "📚 Мои рецепты", "⚙️ Мой профиль", "🔄 Сушка / Набор"
+// Mode toggle
+function setMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Update defaults
+  if (mode === 'cut') {
+    document.getElementById('kcal').value = 2000;
+    document.getElementById('protein').value = 180;
+    document.getElementById('fat').value = 60;
+    document.getElementById('carbs').value = 180;
+  } else {
+    document.getElementById('kcal').value = 2800;
+    document.getElementById('protein').value = 160;
+    document.getElementById('fat').value = 90;
+    document.getElementById('carbs').value = 300;
+  }
 }
 
-@dp.message(F.text & ~F.text.startswith("/"))
-async def handle_text(message: Message, state: FSMContext):
-    if message.text in MENU_BUTTONS:
-        return
+// Tab switch
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'db') renderDB();
+}
 
-    text = message.text.lower()
+// Format buttons
+document.getElementById('fmt-row').addEventListener('click', e => {
+  const btn = e.target.closest('.fmt-btn');
+  if (!btn) return;
+  document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFmt = btn.dataset.fmt;
+});
 
-    # Определяем — это рецепт для сохранения или запрос блюда
-    keywords_save = ["рецепт:", "сохрани", "добавь в базу"]
-    if any(k in text for k in keywords_save):
-        await parse_and_save_recipe(message, message.text, "вручную")
-        return
+// Get KBJU context
+function getKBJU() {
+  return {
+    kcal: document.getElementById('kcal').value || 2000,
+    protein: document.getElementById('protein').value || 180,
+    fat: document.getElementById('fat').value || 60,
+    carbs: document.getElementById('carbs').value || 180,
+    mode: currentMode === 'cut' ? 'сушка (дефицит калорий)' : 'набор массы (профицит)'
+  };
+}
 
-    # Определяем формат
-    if "заготовка" in text or "несколько дней" in text or "на неделю" in text:
-        fmt = "заготовка на 3-5 дней (несколько порций, можно хранить в контейнерах)"
-    elif "долго" in text or "нормально" in text or "30" in text or "40" in text:
-        fmt = "обычный рецепт (30-40 минут)"
-    else:
-        fmt = "быстрый рецепт (до 15 минут)"
+// Format label
+function fmtLabel() {
+  const map = { quick: 'быстрый (до 15 минут)', normal: 'обычный (30–40 минут)', prep: 'заготовка на 3–5 дней', all: 'все форматы: быстрый, обычный и заготовка на несколько дней' };
+  return map[currentFmt] || 'быстрый';
+}
 
-    p = await get_profile(message.from_user.id)
-    history = await get_history(message.from_user.id)
-    hist_text = f"\nНе повторяй эти блюда: {', '.join(history)}" if history else ""
+// DB context
+function getDBContext() {
+  if (!recipeDB.length) return '';
+  const names = recipeDB.map(r => r.name).join(', ');
+  return `\n\nТакже у пользователя в базе любимых рецептов есть: ${names}. Если уместно — упомяни похожие техники приготовления.`;
+}
 
-    await message.answer("👨‍🍳 Думаю...")
+// API call
+async function callClaude(prompt) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content.map(b => b.text || '').join('');
+}
 
-    prompt = f"""Ты шеф-повар который готовит очень вкусно — как крутые фуд-блогеры.
-Ярко, сочно, с балансом вкусов. Без пафоса — просто реально вкусно.
+// Extract KBJU from response
+function extractKBJU(text) {
+  const kcal = text.match(/(\d+)\s*ккал/i)?.[1];
+  const prot = text.match(/белок[:\s]+(\d+)/i)?.[1] || text.match(/Б[:\s]+(\d+)/i)?.[1];
+  const fat = text.match(/жир[ы]?[:\s]+(\d+)/i)?.[1] || text.match(/Ж[:\s]+(\d+)/i)?.[1];
+  const carb = text.match(/углев[а-я]+[:\s]+(\d+)/i)?.[1] || text.match(/У[:\s]+(\d+)/i)?.[1];
+  return { kcal, prot, fat, carb };
+}
 
-{kbju_context(p)}
-{hist_text}
+function renderPills(container, kbju) {
+  container.innerHTML = '';
+  if (kbju.kcal) container.innerHTML += `<span class="pill kcal">${kbju.kcal} ккал</span>`;
+  if (kbju.prot) container.innerHTML += `<span class="pill protein">Б ${kbju.prot}г</span>`;
+  if (kbju.fat) container.innerHTML += `<span class="pill fat">Ж ${kbju.fat}г</span>`;
+  if (kbju.carb) container.innerHTML += `<span class="pill carb">У ${kbju.carb}г</span>`;
+}
 
-Ингредиенты или запрос: {message.text}
-Формат: {fmt}
+// Generate from fridge
+async function generateFridge() {
+  const ingredients = document.getElementById('fridge-input').value.trim();
+  if (!ingredients) { showError('fridge-error', 'Укажи что есть в холодильнике'); return; }
 
-Ответь в таком формате:
+  const kbju = getKBJU();
+  const loading = document.getElementById('fridge-loading');
+  const result = document.getElementById('fridge-result');
+  const btn = document.querySelector('#tab-fridge .gen-btn');
 
-🍽 НАЗВАНИЕ БЛЮДА
+  loading.classList.add('visible');
+  result.classList.remove('visible');
+  btn.disabled = true;
+  hideError('fridge-error');
 
-💬 Почему вкусно (1-2 предложения про вкусовой баланс)
+  try {
+    const prompt = `Ты шеф-повар, который готовит очень вкусно как крутые фуд-блогеры — ярко, сочно, с балансом вкусов. Без пафоса, без мишленовских понтов. Просто по-настоящему вкусно.
 
-📦 Ингредиенты (с граммами на порцию):
-• ...
+Пользователь на ${kbju.mode}. Его цели на день: ${kbju.kcal} ккал, белок ${kbju.protein}г, жир ${kbju.fat}г, углеводы ${kbju.carbs}г.
 
-👨‍🍳 Приготовление:
-1. ...
-2. ...
+Доступные ингредиенты: ${ingredients}
 
-📊 КБЖУ на порцию: X ккал / Б Xг / Ж Xг / У Xг
+Предложи рецепт в формате: ${fmtLabel()}.${getDBContext()}
 
-🔥 Фишка: что делает блюдо реально вкусным
+Структура ответа:
+— Название блюда (яркое, аппетитное)
+— Почему это вкусно (1–2 предложения — про вкусовой баланс, текстуры)
+— Ингредиенты с точными граммами на порцию
+— Пошаговый рецепт (конкретно, без воды)
+— КБЖУ на порцию: ккал / Б / Ж / У в граммах
+— 1 фишка от шефа (что делает это блюдо реально вкусным)
 
-Пиши по-русски. Будь конкретным с граммами."""
+Пиши по-русски. Будь конкретным с граммами. Не используй экзотические ингредиенты которых нет в списке.`;
 
-    try:
-        response = gemini.generate_content(prompt)
-        result = response.text
+    const text = await callClaude(prompt);
+    const kbju_res = extractKBJU(text);
 
-        # Сохранить в историю
-        lines = [l.strip() for l in result.split('\n') if l.strip()]
-        first = lines[0].replace("🍽", "").replace("НАЗВАНИЕ БЛЮДА", "").strip()
-        if first:
-            await save_history(message.from_user.id, first)
+    document.getElementById('fridge-result-title').textContent = '';
+    document.getElementById('fridge-result-body').textContent = text;
+    renderPills(document.getElementById('fridge-pills'), kbju_res);
+    result.classList.add('visible');
+  } catch(e) {
+    showError('fridge-error', 'Ошибка: ' + e.message);
+  } finally {
+    loading.classList.remove('visible');
+    btn.disabled = false;
+  }
+}
 
-        await message.answer(result)
-        await message.answer(
-            "Сохранить рецепт в базу?\nНапиши *да* — и я запомню 👇",
-            parse_mode="Markdown",
-            reply_markup=main_menu()
-        )
-    except Exception as e:
-        await message.answer(f"Ошибка: {e}")
+// Generate day plan
+async function generatePlan() {
+  const kbju = getKBJU();
+  const prefs = document.getElementById('plan-input').value.trim();
+  const loading = document.getElementById('plan-loading');
+  const result = document.getElementById('plan-result');
+  const btn = document.querySelector('#tab-plan .gen-btn');
 
-# Сохранить последний рецепт по команде "да"
-@dp.message(F.text.lower().in_(["да", "сохрани", "сохранить"]))
-async def save_last(message: Message, state: FSMContext):
-    data = await state.get_data()
-    last = data.get("last_recipe")
-    if last:
-        await parse_and_save_recipe(message, last, "из чата")
-    else:
-        await message.answer(
-            "Отправь мне текст рецепта — и я сохраню его в базу.",
-            reply_markup=main_menu()
-        )
+  loading.classList.add('visible');
+  result.classList.remove('visible');
+  btn.disabled = true;
+  hideError('plan-error');
 
-# Запуск
-async def main():
-    print("Бот запущен ✅")
-    await dp.start_polling(bot)
+  try {
+    const dbCtx = recipeDB.length ? `\n\nВ базе любимых рецептов пользователя: ${recipeDB.map(r=>r.name).join(', ')}. Включи 1–2 из них если подходят по КБЖУ.` : '';
 
-if __name__ == "__main__":
-    asyncio.run(main())
+    const prompt = `Ты нутрициолог и шеф-повар одновременно. Составь меню на день — вкусное, реалистичное, с точным попаданием в КБЖУ.
+
+Режим: ${kbju.mode}
+Цели: ${kbju.kcal} ккал, белок ${kbju.protein}г, жир ${kbju.fat}г, углеводы ${kbju.carbs}г
+${prefs ? `Пожелания: ${prefs}` : ''}${dbCtx}
+
+Формат:
+МЕНЮ НА ДЕНЬ
+
+🌅 Завтрак (~XX ккал)
+Название блюда — краткий рецепт (3–4 шага), граммы ингредиентов
+КБЖУ: X ккал / Б Xг / Ж Xг / У Xг
+
+🍱 Обед (~XX ккал)
+...
+
+🥗 Перекус (~XX ккал)
+...
+
+🍽 Ужин (~XX ккал)
+...
+
+ИТОГО ЗА ДЕНЬ: X ккал / Б Xг / Ж Xг / У Xг
+
+📋 Список покупок (что нужно докупить, без базовых специй)
+
+Пиши по-русски. Блюда должны быть реально вкусными, не скучными куриными грудками с гречкой.`;
+
+    const text = await callClaude(prompt);
+    document.getElementById('plan-result-body').textContent = text;
+    result.classList.add('visible');
+  } catch(e) {
+    showError('plan-error', 'Ошибка: ' + e.message);
+  } finally {
+    loading.classList.remove('visible');
+    btn.disabled = false;
+  }
+}
+
+// Save manual recipe to DB
+async function saveManual() {
+  const text = document.getElementById('ig-manual').value.trim();
+  const igUrl = document.getElementById('ig-url').value.trim();
+  if (!text && !igUrl) { showError('ig-error', 'Вставь ссылку или опиши рецепт'); return; }
+
+  const loading = document.getElementById('ig-loading');
+  const btn = document.querySelector('#tab-db .gen-btn');
+  loading.classList.add('visible');
+  btn.disabled = true;
+  hideError('ig-error');
+
+  try {
+    const input = text || `Рецепт из Instagram: ${igUrl}`;
+    const prompt = `Проанализируй этот рецепт и верни JSON (только JSON, без markdown):
+{
+  "name": "название блюда",
+  "ingredients": ["ингредиент 1", "ингредиент 2"],
+  "time": "время приготовления",
+  "kcal": число или null,
+  "protein": число или null,
+  "tags": ["тег1", "тег2"],
+  "summary": "одно предложение о блюде"
+}
+
+Рецепт: ${input}`;
+
+    const response = await callClaude(prompt);
+    let parsed;
+    try {
+      const clean = response.replace(/```json|```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      parsed = { name: text.split('\n')[0].substring(0,50) || 'Рецепт из Instagram', ingredients: [], time: 'неизвестно', kcal: null, tags: [], summary: text.substring(0,100) };
+    }
+
+    const recipe = {
+      id: Date.now(),
+      name: parsed.name || 'Новый рецепт',
+      ingredients: parsed.ingredients || [],
+      time: parsed.time || '?',
+      kcal: parsed.kcal,
+      protein: parsed.protein,
+      tags: parsed.tags || [],
+      summary: parsed.summary || '',
+      source: igUrl || 'вручную',
+      addedAt: new Date().toLocaleDateString('ru')
+    };
+
+    recipeDB.unshift(recipe);
+    localStorage.setItem('chefbot_db', JSON.stringify(recipeDB));
+    document.getElementById('ig-manual').value = '';
+    document.getElementById('ig-url').value = '';
+    renderDB();
+    switchTab('db', document.querySelectorAll('.tab')[2]);
+  } catch(e) {
+    showError('ig-error', 'Ошибка: ' + e.message);
+  } finally {
+    loading.classList.remove('visible');
+    btn.disabled = false;
+  }
+}
+
+// Add from IG (same as manual with URL)
+function addFromIG() {
+  const url = document.getElementById('ig-url').value.trim();
+  if (!url) { showError('ig-error', 'Вставь ссылку на Instagram'); return; }
+  document.getElementById('ig-manual').value = `Рецепт из этого поста Instagram: ${url}\nПожалуйста, извлеки и структурируй рецепт.`;
+  saveManual();
+}
+
+// Render DB
+function renderDB() {
+  const list = document.getElementById('db-list');
+  const count = document.getElementById('db-count');
+  count.textContent = recipeDB.length + ' рецептов';
+
+  if (!recipeDB.length) {
+    list.innerHTML = '<div class="db-empty">База пуста. Добавь первый рецепт!</div>';
+    return;
+  }
+
+  list.innerHTML = recipeDB.map(r => `
+    <div class="db-item">
+      <div class="db-item-info">
+        <div class="db-item-name">${r.name}</div>
+        <div class="db-item-meta">${r.time} · ${r.kcal ? r.kcal+'ккал' : ''} · ${r.tags.slice(0,3).join(', ')} · добавлен ${r.addedAt}</div>
+        ${r.summary ? `<div class="db-item-meta" style="margin-top:2px;font-style:italic">${r.summary}</div>` : ''}
+      </div>
+      <button class="db-item-use" onclick="useRecipe(${r.id})">Приготовить</button>
+    </div>
+  `).join('');
+}
+
+// Use recipe from DB
+function useRecipe(id) {
+  const r = recipeDB.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('fridge-input').value = r.ingredients.join(', ');
+  switchTab('fridge', document.querySelectorAll('.tab')[0]);
+  document.getElementById('fridge-input').focus();
+}
+
+// Error helpers
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+function hideError(id) {
+  document.getElementById(id).classList.remove('visible');
+}
+
+// Init
+renderDB();
+</script>
+</body>
+</html>
